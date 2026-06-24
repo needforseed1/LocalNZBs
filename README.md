@@ -84,14 +84,13 @@ The host path must be the same on both mounts. In the example above, both contai
 
 Use this only when sharing a host directory is not practical, for example when the process saving NZBs runs on another machine.
 
-Configure nzbserver with an upload key:
+If you use `docker-compose.example.yml`, set an upload key in `.env`:
 
-```yaml
-environment:
-  NZB_DIR: /nzbs
-  PROVIDER_NAME: LocalNZBs
-  UPLOAD_KEY: some-long-secret
+```env
+UPLOAD_KEY=some-long-secret
 ```
+
+`NZB_DIR=/nzbs` is already set in the compose file. `PROVIDER_NAME` can also stay in `.env` if you want to change the indexer name. The `/nzbs` volume must be writable because uploaded files are saved there.
 
 Then have nzbdavex, a post-save hook, a wrapper script, or a sidecar watcher push each saved NZB to nzbserver:
 

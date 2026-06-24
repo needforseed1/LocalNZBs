@@ -110,7 +110,7 @@ A built-in web interface lives under `/ui` for browsing indexed NZBs, inspecting
 
 - **Disabled by default.** It fails closed until `UI_PASSWORD` is set — same model as `API_KEY`. Sign in at `/ui/login` with that password.
 - Auth is separate from `API_KEY`: the indexer key is for Prowlarr/AIOStreams, `UI_PASSWORD` is for the browser. The session is stored in a signed cookie.
-- **Browse** (`/ui/`): filter by query, category, or media type; paginated; per-row and select-all checkboxes for bulk actions.
+- **Browse** (`/ui/`): filter by query, category, or media type; sortable columns; paginated; per-row and select-all checkboxes for bulk actions.
 - **Stats** (`/ui/stats`): totals, breakdown by category/resolution/release group, largest and most-recent releases.
 - **Delete moves to trash, it does not unlink.** Selected `.nzb` files are moved to `TRASH_DIR` (default `<NZB_DIR>/.trash`), which is excluded from indexing, so they vanish from search results but remain recoverable on disk. Empty the trash directory yourself when you are sure.
 

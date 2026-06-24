@@ -121,7 +121,11 @@ Searches return locally saved NZBs whose filenames match the requested title. TV
 
 ### Pin local NZBs in AIOStreams
 
-For best results, add LocalNZBs directly to AIOStreams as a Newznab source and use Prowlarr only for remote Usenet indexers. This lets AIOStreams keep its Prowlarr cache for slower remote searches while querying LocalNZBs through the direct Newznab cache path, which can be disabled so newly saved local NZBs appear immediately. If LocalNZBs is included through the Prowlarr addon instead, local and remote results can be cached together, so AIOStreams may keep serving an older Prowlarr result that was created before nzbdavex saved the local NZB.
+For best results, add LocalNZBs to AIOStreams directly as a Newznab source, and keep Prowlarr for remote Usenet indexers only.
+
+That split keeps two independent cache paths: AIOStreams can cache slow remote Prowlarr searches while querying LocalNZBs through the direct Newznab path, which you can disable so newly saved local NZBs appear immediately (see [Caching](#caching)).
+
+Routing LocalNZBs through the Prowlarr addon instead caches local and remote results together. AIOStreams can then keep serving a stale Prowlarr result that was cached before nzbdavex saved the local NZB.
 
 Disable LocalNZBs in the AIOStreams Prowlarr addon selection, then add LocalNZBs to **Ranked Stream Expressions** with a high score, for example `100000`:
 
@@ -163,7 +167,8 @@ Use this only when sharing a host directory is not practical — for example whe
 Set an upload key in `.env`:
 
 ```env
-UPLOAD_KEY=$(openssl rand -hex 32)
+# Generate a value with: openssl rand -hex 32
+UPLOAD_KEY=paste-generated-value-here
 ```
 
 The `/nzbs` volume must be writable, since uploads are saved there. Then have nzbdavex, a post-save hook, a wrapper script, or a sidecar watcher push each saved NZB:

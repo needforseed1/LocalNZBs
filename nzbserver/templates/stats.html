@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Stats — {{ provider }}{% endblock %}
+{% block body %}
+  <h1 style="margin-top:0">Statistics</h1>
+
+  <div class="grid">
+    <div class="card"><div class="big">{{ stats.total_count }}</div><div class="muted">NZBs indexed</div></div>
+    <div class="card"><div class="big">{{ stats.total_size | human_size }}</div><div class="muted">Total release size</div></div>
+    <div class="card"><div class="big">{{ stats.by_media_type.get("movie", 0) }}</div><div class="muted">Movies</div></div>
+    <div class="card"><div class="big">{{ stats.by_media_type.get("episode", 0) }}</div><div class="muted">Episodes</div></div>
+  </div>
+
+  <h2>By category</h2>
+  <table>
+    <thead><tr><th>Category</th><th>Count</th><th>Size</th></tr></thead>
+    <tbody>
+      {% for cat, n in stats.by_category | dictsort(by="value", reverse=true) %}
+      <tr>
+        <td><a href="/ui/?cat={{ cat }}">{{ cat | category_name }}</a></td>
+        <td>{{ n }}</td>
+        <td>{{ stats.size_by_category.get(cat, 0) | human_size }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>By resolution</h2>
+  <table>
+    <thead><tr><th>Resolution</th><th>Count</th></tr></thead>
+    <tbody>
+      {% for res, n in stats.by_resolution | dictsort(by="value", reverse=true) %}
+      <tr><td>{{ res }}</td><td>{{ n }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if top_groups %}
+  <h2>Top release groups</h2>
+  <table>
+    <thead><tr><th>Group</th><th>Count</th></tr></thead>
+    <tbody>
+      {% for group, n in top_groups %}
+      <tr><td>{{ group }}</td><td>{{ n }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <h2>Largest releases</h2>
+  <table>
+    <thead><tr><th>Title</th><th>Size</th></tr></thead>
+    <tbody>
+      {% for item in stats.largest %}
+      <tr><td><a href="/ui/item/{{ item.id }}">{{ item.filename.removesuffix(".nzb") }}</a></td>
+          <td>{{ item.size | human_size }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Recently added</h2>
+  <table>
+    <thead><tr><th>Title</th><th>Modified</th></tr></thead>
+    <tbody>
+      {% for item in stats.newest %}
+      <tr><td><a href="/ui/item/{{ item.id }}">{{ item.filename.removesuffix(".nzb") }}</a></td>
+          <td class="muted">{{ item.mtime | dt }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

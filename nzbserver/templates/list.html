@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Browse — {{ provider }}{% endblock %}
+{% block body %}
+  {% if msg %}<div class="msg">{{ msg }}</div>{% endif %}
+
+  {% macro sortable(key, label, cls="") %}
+    {% set ndir = "asc" if (sort == key and dir == "desc") else "desc" %}
+    {% set tri = ("▼" if dir == "desc" else "▲") if sort == key else "" %}
+    <th class="{{ cls }}"><a href="/ui/?sort={{ key }}&dir={{ ndir }}&q={{ q }}&cat={{ cat }}&type={{ type }}">{{ label }}<span class="sort-ar">{{ tri }}</span></a></th>
+  {% endmacro %}
+
+  <form class="toolbar" method="get" action="/ui/">
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <input type="hidden" name="dir" value="{{ dir }}">
+    <input type="search" name="q" value="{{ q }}" placeholder="Search title…">
+    <select name="cat">
+      <option value="">All categories</option>
+      {% for id, name in categories.items() %}
+        <option value="{{ id }}" {% if cat == id|string %}selected{% endif %}>{{ name }}</option>
+      {% endfor %}
+    </select>
+    <select name="type">
+      <option value="">All types</option>
+      <option value="movie" {% if type == "movie" %}selected{% endif %}>Movie</option>
+      <option value="episode" {% if type == "episode" %}selected{% endif %}>Episode</option>
+      <option value="unknown" {% if type == "unknown" %}selected{% endif %}>Unknown</option>
+    </select>
+    <button type="submit">Filter</button>
+    {% if q or cat or type %}<a class="btn" href="/ui/">Clear</a>{% endif %}
+    <span class="muted">{{ total }} result{{ "" if total == 1 else "s" }}</span>
+  </form>
+
+  <form id="bulk" method="post" action="/ui/delete">
+    <div class="toolbar">
+      <button type="submit" class="danger" id="delete-btn" disabled>Delete selected</button>
+      <span class="muted" id="sel-count"></span>
+    </div>
+    <table class="rows">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="check-all"></th>
+          {{ sortable("title", "Title", "title-col") }}
+          {{ sortable("category", "Category") }}
+          {{ sortable("type", "Type") }}
+          {{ sortable("resolution", "Res") }}
+          {{ sortable("size", "Size") }}
+          {{ sortable("files", "Files") }}
+          {{ sortable("mtime", "Modified") }}
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td><input type="checkbox" name="ids" value="{{ item.id }}" class="row-check"></td>
+          <td class="title-col"><a href="/ui/item/{{ item.id }}">{{ item.filename.removesuffix(".nzb") }}</a></td>
+          <td>{{ item.metadata.category | category_name }}</td>
+          <td>{{ item.metadata.media_type }}</td>
+          <td>{{ item.metadata.resolution or "—" }}</td>
+          <td>{{ item.size | human_size }}</td>
+          <td>{{ item.file_count }}</td>
+          <td class="muted">{{ item.mtime | dt }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="muted">No NZBs found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </form>
+
+  {% if pages > 1 %}
+  <div class="pager">
+    {% set qs = "&q=" ~ q ~ "&cat=" ~ cat ~ "&type=" ~ type ~ "&sort=" ~ sort ~ "&dir=" ~ dir %}
+    {% if page > 1 %}<a class="btn" href="/ui/?page={{ page - 1 }}{{ qs }}">← Prev</a>{% endif %}
+    <span class="muted">Page {{ page }} of {{ pages }}</span>
+    {% if page < pages %}<a class="btn" href="/ui/?page={{ page + 1 }}{{ qs }}">Next →</a>{% endif %}
+  </div>
+  {% endif %}
+
+  <script>
+    const checkAll = document.getElementById("check-all");
+    const rows = Array.from(document.querySelectorAll(".row-check"));
+    const delBtn = document.getElementById("delete-btn");
+    const count = document.getElementById("sel-count");
+    function update() {
+      const n = rows.filter(r => r.checked).length;
+      delBtn.disabled = n === 0;
+      count.textContent = n ? n + " selected" : "";
+      checkAll.checked = n > 0 && n === rows.length;
+    }
+    checkAll?.addEventListener("change", () => { rows.forEach(r => r.checked = checkAll.checked); update(); });
+    rows.forEach(r => r.addEventListener("change", update));
+    document.getElementById("bulk").addEventListener("submit", (e) => {
+      const n = rows.filter(r => r.checked).length;
+      if (!confirm("Move " + n + " NZB(s) to trash?")) e.preventDefault();
+    });
+    update();
+  </script>
+{% endblock %}

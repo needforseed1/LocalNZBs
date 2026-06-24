@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ item.filename }} — {{ provider }}{% endblock %}
+{% block body %}
+  <p><a href="/ui/">← Back to browse</a></p>
+  <h1 style="margin-top:0">{{ item.filename.removesuffix(".nzb") }}</h1>
+
+  <dl class="meta">
+    <dt>Title</dt><dd>{{ item.metadata.title }}</dd>
+    <dt>Category</dt><dd>{{ item.metadata.category | category_name }} ({{ item.metadata.category }})</dd>
+    <dt>Media type</dt><dd>{{ item.metadata.media_type }}</dd>
+    {% if item.metadata.year %}<dt>Year</dt><dd>{{ item.metadata.year }}</dd>{% endif %}
+    {% if item.metadata.season is not none %}<dt>Season</dt><dd>{{ item.metadata.season }}</dd>{% endif %}
+    {% if item.metadata.episode is not none %}<dt>Episode</dt><dd>{{ item.metadata.episode }}</dd>{% endif %}
+    {% if item.metadata.resolution %}<dt>Resolution</dt><dd>{{ item.metadata.resolution }}</dd>{% endif %}
+    {% if item.metadata.source %}<dt>Source</dt><dd>{{ item.metadata.source }}</dd>{% endif %}
+    {% if item.metadata.video_codec %}<dt>Codec</dt><dd>{{ item.metadata.video_codec }}</dd>{% endif %}
+    {% if item.metadata.release_group %}<dt>Release group</dt><dd>{{ item.metadata.release_group }}</dd>{% endif %}
+    <dt>Release size</dt><dd>{{ item.size | human_size }} ({{ item.size }} bytes)</dd>
+    <dt>NZB file size</dt><dd>{{ item.nzb_size | human_size }}</dd>
+    <dt>Files</dt><dd>{{ item.file_count }}</dd>
+    <dt>Modified</dt><dd>{{ item.mtime | dt }} UTC</dd>
+    <dt>Path</dt><dd><code>{{ item.path }}</code></dd>
+    <dt>ID</dt><dd><code>{{ item.id }}</code></dd>
+  </dl>
+
+  <div class="toolbar" style="margin-top:1.5rem">
+    <a class="btn" href="/api?t=get&id={{ item.id }}{% if api_key %}&apikey={{ api_key }}{% endif %}">Download .nzb</a>
+    <form class="inline" method="post" action="/ui/delete"
+          onsubmit="return confirm('Move this NZB to trash?')">
+      <input type="hidden" name="ids" value="{{ item.id }}">
+      <button type="submit" class="danger">Delete</button>
+    </form>
+  </div>
+{% endblock %}

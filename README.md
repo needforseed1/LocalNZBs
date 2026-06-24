@@ -130,7 +130,7 @@ Routing LocalNZBs through the Prowlarr addon instead caches local and remote res
 Disable LocalNZBs in the AIOStreams Prowlarr addon selection, then add LocalNZBs to **Ranked Stream Expressions** with a high score, for example `100000`:
 
 ```text
-indexer(type(streams, 'usenet'), 'LocalNZBs')
+/* LocalNZBs */ indexer(type(streams, 'usenet'), 'LocalNZBs')
 ```
 
 This makes matching LocalNZBs streams sort above normal remote results.

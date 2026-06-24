@@ -11,7 +11,6 @@ It is for setups where NZBs already exist locally — for example alongside nzbd
 - Parses filenames with `guessit` to infer movie/episode metadata and category.
 - Reads NZB XML segment sizes so results report the release payload size, not the `.nzb` file size.
 - Emits Newznab RSS with category, size, file count, title, year, season, episode, resolution, source, codec, release group, and more when available.
-- Optional authenticated HTTP upload when sharing a directory is not practical.
 
 ## Quick Start (Docker)
 
@@ -35,7 +34,7 @@ docker run -d --name nzbserver -p 8000:8000 \
 
 - Default image: `ghcr.io/needforseed1/localnzbs:latest`. To build locally, replace the `image:` line with `build: .`.
 - Change the volume and `8000:8000` port lines if your NZBs live elsewhere or port 8000 is taken.
-- The container runs as `1000:1000` so files are not owned by root. Change the `user:` line if a different user/group should read and write the shared directory.
+- The container runs as `1000:1000`. Change the `user:` line if a different user/group should read the shared directory.
 
 ### Shared directory
 
@@ -52,7 +51,7 @@ services:
       - /srv/nzbs:/output-nzbs:rw
 ```
 
-LocalNZBs only reads the directory, so `:ro` is enough. Use `:rw` only if you enable [HTTP upload](#optional-http-upload), which writes uploaded NZBs into the directory.
+LocalNZBs only reads the directory, so mount it read-only with `:ro`.
 
 The container-side paths may differ, but the **host path must match** (`/srv/nzbs` above). Configure nzbdavex to save NZBs into `/output-nzbs`; keep LocalNZBs on `NZB_DIR=/nzbs`.
 
@@ -82,21 +81,18 @@ http://localhost:8000/api?t=get&id=ITEM_ID&apikey=YOUR_KEY
 | `NZB_DIR` | `/nzbs` | Directory containing `.nzb` files. Scanned recursively. |
 | `PROVIDER_NAME` | `LocalNZBs` | Name exposed to clients as the provider/indexer. |
 | `API_KEY` | `change-me` | Required. `/api` returns 403 until this is changed from `change-me`. Requests must then include `apikey`. |
-| `UPLOAD_KEY` | `change-me-too` | Key for `PUT /nzb/{filename}` uploads. Upload stays disabled while unset or left at `change-me-too`. |
 | `BASE_URL` | request host | Public base URL used in generated download links. |
 | `REFRESH_SECONDS` | `10` | Minimum seconds between directory rescans. |
-| `MAX_UPLOAD_BYTES` | `104857600` | Maximum accepted raw NZB upload size (100 MiB). |
 | `HOST` | `0.0.0.0` in Docker | Docker command host binding. |
 | `PORT` | `8000` in Docker | Docker command port. |
 
 ### Keys
 
-`.env.example` ships both keys at placeholder values (`change-me`, `change-me-too`). The server treats those placeholders as "not set" and fails closed:
+`.env.example` ships `API_KEY` at a placeholder value (`change-me`). The server treats that placeholder as "not set" and fails closed:
 
 - `API_KEY` left at `change-me` (or empty): `/api` returns `403` until you set a real key. No open access.
-- `UPLOAD_KEY` left at `change-me-too` (or empty): `PUT /nzb/{filename}` stays disabled.
 
-Generate a real secret for either with:
+Generate a real secret with:
 
 ```bash
 openssl rand -hex 32
@@ -158,43 +154,6 @@ BUILTIN_NAB_SEARCH_CACHE_TTL=0
 - `BUILTIN_NAB_SEARCH_CACHE_TTL=0` — direct Newznab searches against LocalNZBs stay fresh, so newly saved NZBs appear on the next search.
 
 Recreate AIOStreams after changing these so the old in-memory cache is dropped: `docker compose up -d`.
-
-## Optional HTTP Upload
-
-Use this only when sharing a host directory is not practical — for example when the process saving NZBs runs on another machine.
-
-Set an upload key in `.env`:
-
-```env
-# Generate a value with: openssl rand -hex 32
-UPLOAD_KEY=paste-generated-value-here
-```
-
-The `/nzbs` volume must be writable, since uploads are saved there. Then have nzbdavex, a post-save hook, a wrapper script, or a sidecar watcher push each saved NZB:
-
-```bash
-curl -f \
-  -H "X-Upload-Key: $UPLOAD_KEY" \
-  -H "Content-Type: application/x-nzb" \
-  --upload-file "/path/to/file.nzb" \
-  "http://nzbserver-host:8000/nzb/$(basename "/path/to/file.nzb")"
-```
-
-Contract:
-
-```text
-PUT /nzb/{filename}
-X-Upload-Key: secret
-body: raw .nzb file
-```
-
-Response:
-
-```json
-{"ok": true, "filename": "Movie.Title.2023.1080p.WEB-DL.x265-GROUP.nzb", "size": 12345}
-```
-
-Uploads are written atomically, then the in-memory index refreshes immediately. Re-uploading the same filename overwrites it, so retrying is safe.
 
 ## Filename Parsing
 

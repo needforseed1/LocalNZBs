@@ -9,13 +9,11 @@ services:
       NZB_DIR: /nzbs
       PROVIDER_NAME: ${PROVIDER_NAME:-LocalNZBs}
       API_KEY: ${API_KEY:-}
-      UPLOAD_KEY: ${UPLOAD_KEY:-}
       BASE_URL: ${BASE_URL:-}
       REFRESH_SECONDS: ${REFRESH_SECONDS:-10}
-      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-104857600}
     ports:
       - "8000:8000"
     volumes:
       # Use the same host directory where nzbdave/nzbdavex writes downloaded NZBs.
-      - ./nzbs:/nzbs:rw
+      - ./nzbs:/nzbs:ro
     restart: unless-stopped

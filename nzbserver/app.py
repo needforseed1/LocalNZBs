@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import logging
 import os
-import tempfile
 import threading
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, Response
 
 from .index import NzbIndex, parse_categories, parse_int
 from .newznab import caps_xml, error_xml, rss_xml
@@ -20,15 +19,13 @@ class Settings:
     nzb_dir: Path
     provider_name: str
     api_key: str | None
-    upload_key: str | None
     base_url: str | None
     refresh_seconds: int
-    max_upload_bytes: int
 
 
-# Keys left at their .env.example placeholder value are treated as "not set",
+# API_KEY left at its .env.example placeholder value is treated as "not set",
 # so the server fails closed instead of running with a guessable secret.
-PLACEHOLDER_KEYS = {"change-me", "change-me-too"}
+PLACEHOLDER_KEYS = {"change-me"}
 
 
 def configured_key(value: str | None) -> str | None:
@@ -45,10 +42,8 @@ def load_settings() -> Settings:
         nzb_dir=Path(os.getenv("NZB_DIR", "/nzbs")).expanduser(),
         provider_name=os.getenv("PROVIDER_NAME", "LocalNZBs"),
         api_key=configured_key(os.getenv("API_KEY")),
-        upload_key=configured_key(os.getenv("UPLOAD_KEY")),
         base_url=os.getenv("BASE_URL") or None,
         refresh_seconds=int(os.getenv("REFRESH_SECONDS", "10")),
-        max_upload_bytes=int(os.getenv("MAX_UPLOAD_BYTES", str(100 * 1024 * 1024))),
     )
 
 
@@ -101,52 +96,6 @@ def api(request: Request) -> Response:
         return search(request, command)
 
     return xml_response(error_xml(203, f"Function not available: {command}"), status_code=400)
-
-
-@app.put("/nzb/{filename}")
-async def upload_nzb(filename: str, request: Request) -> JSONResponse:
-    if not settings.upload_key:
-        return json_error("NZB upload is disabled because UPLOAD_KEY is not set", 403)
-    if request.headers.get("x-upload-key") != settings.upload_key:
-        return json_error("Invalid upload key", 403)
-
-    safe_name = safe_nzb_filename(filename)
-    if safe_name is None:
-        return json_error("filename must be a plain .nzb basename", 400)
-
-    settings.nzb_dir.mkdir(parents=True, exist_ok=True)
-    destination = settings.nzb_dir / safe_name
-    temp_path: Path | None = None
-    size = 0
-
-    try:
-        with tempfile.NamedTemporaryFile(
-            "wb",
-            dir=settings.nzb_dir,
-            prefix=f".{safe_name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as temp_file:
-            temp_path = Path(temp_file.name)
-            async for chunk in request.stream():
-                size += len(chunk)
-                if size > settings.max_upload_bytes:
-                    return json_error("NZB upload is too large", 413)
-                temp_file.write(chunk)
-
-        os.replace(temp_path, destination)
-    finally:
-        if temp_path is not None and temp_path.exists():
-            temp_path.unlink(missing_ok=True)
-
-    index.refresh(force=True)
-    logger.info(
-        "uploaded nzb filename=%s size=%s source=%s",
-        safe_name,
-        size,
-        request.client.host if request.client else "unknown",
-    )
-    return JSONResponse({"ok": True, "filename": safe_name, "size": size})
 
 
 def get_nzb(item_id: str | None) -> Response:
@@ -205,21 +154,5 @@ def parse_first_int(params: object, *names: str) -> int | None:
     return None
 
 
-def safe_nzb_filename(filename: str) -> str | None:
-    if not filename or filename in {".", ".."}:
-        return None
-    if "/" in filename or "\\" in filename:
-        return None
-    if Path(filename).name != filename:
-        return None
-    if not filename.lower().endswith(".nzb"):
-        return None
-    return filename
-
-
 def xml_response(content: bytes, status_code: int = 200) -> Response:
     return Response(content=content, status_code=status_code, media_type="application/xml")
-
-
-def json_error(message: str, status_code: int) -> JSONResponse:
-    return JSONResponse({"ok": False, "error": message}, status_code=status_code)

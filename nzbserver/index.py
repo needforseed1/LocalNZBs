@@ -40,6 +40,25 @@ class SearchResults:
     total: int
 
 
+@dataclass(frozen=True)
+class IndexStats:
+    total_count: int
+    total_size: int
+    by_category: dict[int, int]
+    by_media_type: dict[str, int]
+    by_resolution: dict[str, int]
+    by_group: dict[str, int]
+    size_by_category: dict[int, int]
+    largest: list[NzbItem]
+    newest: list[NzbItem]
+
+
+@dataclass(frozen=True)
+class DeleteResult:
+    moved: list[str]
+    missing: list[str]
+
+
 class NzbIndex:
     def __init__(self, root: Path, refresh_seconds: int = 10) -> None:
         self.root = root
@@ -71,6 +90,8 @@ class NzbIndex:
                     try:
                         if not path.is_file() or path.suffix.lower() != ".nzb":
                             continue
+                        if self._is_hidden(path):
+                            continue
 
                         stat = path.stat()
                         item_id = stable_id(self.root, path)
@@ -92,9 +113,94 @@ class NzbIndex:
             self._items = items
             self._last_refresh = now
 
+    def _is_hidden(self, path: Path) -> bool:
+        # Skip dotfiles and anything inside a dot-directory (e.g. the trash dir),
+        # so deleted-to-trash NZBs are never re-indexed.
+        try:
+            parts = path.relative_to(self.root).parts
+        except ValueError:
+            parts = path.parts
+        return any(part.startswith(".") for part in parts)
+
     def get(self, item_id: str) -> NzbItem | None:
         self.refresh()
         return self._items.get(item_id)
+
+    def all_items(self) -> list[NzbItem]:
+        self.refresh()
+        return sorted(self._items.values(), key=lambda item: item.mtime, reverse=True)
+
+    def stats(self) -> "IndexStats":
+        self.refresh()
+        items = list(self._items.values())
+        total_size = sum(item.size for item in items)
+        by_category: dict[int, int] = {}
+        by_media_type: dict[str, int] = {}
+        by_resolution: dict[str, int] = {}
+        by_group: dict[str, int] = {}
+        size_by_category: dict[int, int] = {}
+        for item in items:
+            meta = item.metadata
+            by_category[meta.category] = by_category.get(meta.category, 0) + 1
+            size_by_category[meta.category] = size_by_category.get(meta.category, 0) + item.size
+            by_media_type[meta.media_type] = by_media_type.get(meta.media_type, 0) + 1
+            resolution = meta.resolution or "unknown"
+            by_resolution[resolution] = by_resolution.get(resolution, 0) + 1
+            if meta.release_group:
+                by_group[meta.release_group] = by_group.get(meta.release_group, 0) + 1
+
+        largest = sorted(items, key=lambda item: item.size, reverse=True)[:10]
+        newest = sorted(items, key=lambda item: item.mtime, reverse=True)[:10]
+        return IndexStats(
+            total_count=len(items),
+            total_size=total_size,
+            by_category=by_category,
+            by_media_type=by_media_type,
+            by_resolution=by_resolution,
+            by_group=by_group,
+            size_by_category=size_by_category,
+            largest=largest,
+            newest=newest,
+        )
+
+    def delete_to_trash(self, ids: list[str], trash_dir: Path) -> "DeleteResult":
+        self.refresh()
+        moved: list[str] = []
+        missing: list[str] = []
+        for item_id in ids:
+            item = self._items.get(item_id)
+            if item is None or not item.path.exists():
+                missing.append(item_id)
+                continue
+            try:
+                dest = self._trash_destination(item, trash_dir)
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                item.path.replace(dest)
+            except OSError as exc:
+                logger.warning("failed to trash id=%s path=%s error=%s", item_id, item.path, exc)
+                missing.append(item_id)
+                continue
+            self._items.pop(item_id, None)
+            moved.append(item_id)
+        return DeleteResult(moved=moved, missing=missing)
+
+    def _trash_destination(self, item: NzbItem, trash_dir: Path) -> Path:
+        try:
+            relative = item.path.relative_to(self.root)
+        except ValueError:
+            relative = Path(item.filename)
+        dest = trash_dir / relative
+        if not dest.exists():
+            return dest
+        # Collision: append a numeric suffix before the .nzb extension.
+        stem = dest.stem
+        suffix = dest.suffix
+        counter = 1
+        while True:
+            candidate = dest.with_name(f"{stem}.{counter}{suffix}")
+            if not candidate.exists():
+                return candidate
+            counter += 1
 
     def search(
         self,

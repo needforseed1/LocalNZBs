@@ -83,6 +83,8 @@ http://localhost:8000/api?t=get&id=ITEM_ID&apikey=YOUR_KEY
 | `API_KEY` | `change-me` | Required. `/api` returns 403 until this is changed from `change-me`. Requests must then include `apikey`. |
 | `BASE_URL` | request host | Public base URL used in generated download links. |
 | `REFRESH_SECONDS` | `10` | Minimum seconds between directory rescans. |
+| `UI_PASSWORD` | _(unset)_ | Password for the web UI at `/ui`. The UI is disabled until this is set. |
+| `TRASH_DIR` | `<NZB_DIR>/.trash` | Where deleted NZBs are moved. Excluded from indexing. |
 | `HOST` | `0.0.0.0` in Docker | Docker command host binding. |
 | `PORT` | `8000` in Docker | Docker command port. |
 
@@ -101,6 +103,18 @@ openssl rand -hex 32
 Put the value in `.env` (or the container environment), then give the same `API_KEY` to Prowlarr/AIOStreams.
 
 > Note: `GET /` returns caps without an API key. It exposes only the provider name (no NZB data) and is convenient as a health probe.
+
+## Web UI
+
+A built-in web interface lives under `/ui` for browsing indexed NZBs, inspecting per-release metadata, viewing stats, and (mass-)deleting releases.
+
+- **Disabled by default.** It fails closed until `UI_PASSWORD` is set — same model as `API_KEY`. Sign in at `/ui/login` with that password.
+- Auth is separate from `API_KEY`: the indexer key is for Prowlarr/AIOStreams, `UI_PASSWORD` is for the browser. The session is stored in a signed cookie.
+- **Browse** (`/ui/`): filter by query, category, or media type; paginated; per-row and select-all checkboxes for bulk actions.
+- **Stats** (`/ui/stats`): totals, breakdown by category/resolution/release group, largest and most-recent releases.
+- **Delete moves to trash, it does not unlink.** Selected `.nzb` files are moved to `TRASH_DIR` (default `<NZB_DIR>/.trash`), which is excluded from indexing, so they vanish from search results but remain recoverable on disk. Empty the trash directory yourself when you are sure.
+
+> **Requires a writable mount.** Deleting writes to the NZB directory, so the volume must be mounted `:rw` (the example compose file does this). The same directory is shared with nzbdave/nzbdavex and AIOStreams — deleting an NZB here removes the release those tools rely on. If you only want browsing/stats with no risk of modification, keep the mount `:ro`; delete actions will then fail and the on-disk files stay untouched.
 
 ## Client Setup
 

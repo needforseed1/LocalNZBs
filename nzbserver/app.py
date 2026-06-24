@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import threading
@@ -9,6 +10,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, Response
+from starlette.middleware.sessions import SessionMiddleware
 
 from .index import NzbIndex, parse_categories, parse_int
 from .newznab import caps_xml, error_xml, rss_xml
@@ -21,6 +23,8 @@ class Settings:
     api_key: str | None
     base_url: str | None
     refresh_seconds: int
+    ui_password: str | None
+    trash_dir: Path
 
 
 # API_KEY left at its .env.example placeholder value is treated as "not set",
@@ -38,13 +42,33 @@ def configured_key(value: str | None) -> str | None:
 
 
 def load_settings() -> Settings:
+    nzb_dir = Path(os.getenv("NZB_DIR", "/nzbs")).expanduser()
+    trash_env = os.getenv("TRASH_DIR")
+    trash_dir = Path(trash_env).expanduser() if trash_env else nzb_dir / ".trash"
     return Settings(
-        nzb_dir=Path(os.getenv("NZB_DIR", "/nzbs")).expanduser(),
+        nzb_dir=nzb_dir,
         provider_name=os.getenv("PROVIDER_NAME", "LocalNZBs"),
         api_key=configured_key(os.getenv("API_KEY")),
         base_url=os.getenv("BASE_URL") or None,
         refresh_seconds=int(os.getenv("REFRESH_SECONDS", "10")),
+        ui_password=configured_ui_password(os.getenv("UI_PASSWORD")),
+        trash_dir=trash_dir,
     )
+
+
+def configured_ui_password(value: str | None) -> str | None:
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
+
+
+def session_secret(ui_password: str | None) -> str:
+    # Derive a stable session-signing secret from the UI password so cookies
+    # survive restarts without an extra env var. Constant fallback is unused
+    # because the UI is disabled when no password is set.
+    seed = ui_password or "localnzbs-ui-disabled"
+    return hashlib.sha256(f"{seed}:session".encode("utf-8")).hexdigest()
 
 
 settings = load_settings()
@@ -70,6 +94,16 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="nzbserver", version="0.1.0", lifespan=lifespan)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=session_secret(settings.ui_password),
+    session_cookie="localnzbs_ui",
+    same_site="lax",
+)
+
+from .web import router as ui_router  # noqa: E402  (import after app/index exist)
+
+app.include_router(ui_router)
 
 
 @app.get("/")

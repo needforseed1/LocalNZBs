@@ -11,9 +11,12 @@ services:
       API_KEY: ${API_KEY:-}
       BASE_URL: ${BASE_URL:-}
       REFRESH_SECONDS: ${REFRESH_SECONDS:-10}
+      # Set UI_PASSWORD to enable the web UI at /ui. Deleting needs the :rw mount below.
+      UI_PASSWORD: ${UI_PASSWORD:-}
     ports:
       - "8000:8000"
     volumes:
       # Use the same host directory where nzbdave/nzbdavex writes downloaded NZBs.
-      - ./nzbs:/nzbs:ro
+      # :rw so the web UI can move deleted NZBs to the trash dir. Use :ro to forbid deletes.
+      - ./nzbs:/nzbs:rw
     restart: unless-stopped

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ provider }}{% endblock %}</title>
+  <style>
+    :root {
+      --bg: #14151a; --panel: #1d1f26; --border: #2c2f3a; --text: #e6e7eb;
+      --muted: #8b8f9c; --accent: #5b8cff; --danger: #e5484d; --ok: #46a758;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    header {
+      display: flex; align-items: center; gap: 1.5rem; padding: 0.75rem 1.25rem;
+      background: var(--panel); border-bottom: 1px solid var(--border);
+    }
+    header .brand { font-weight: 600; font-size: 1.05rem; }
+    header nav { display: flex; gap: 1rem; }
+    header .spacer { flex: 1; }
+    main { padding: 1.25rem; }
+    .msg { padding: 0.6rem 0.9rem; border-radius: 6px; margin-bottom: 1rem;
+           background: rgba(70,167,88,0.15); border: 1px solid var(--ok); }
+    form.inline { display: inline; }
+    button, .btn {
+      font: inherit; cursor: pointer; border: 1px solid var(--border);
+      background: var(--panel); color: var(--text); padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+    }
+    button:hover, .btn:hover { border-color: var(--accent); }
+    button.danger { border-color: var(--danger); color: var(--danger); }
+    button.danger:hover { background: var(--danger); color: #fff; }
+    input, select {
+      font: inherit; background: var(--bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.6rem;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    table.rows th, table.rows td { white-space: nowrap; width: 1%; }
+    table.rows .title-col { white-space: normal; width: 100%; word-break: break-all; }
+    th, td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; white-space: nowrap; }
+    .sort-ar { font-size: 0.6em; margin-left: 3px; vertical-align: middle; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .muted { color: var(--muted); }
+    .toolbar { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+    .card .big { font-size: 1.6rem; font-weight: 600; }
+    .pager { display: flex; gap: 0.75rem; align-items: center; margin-top: 1rem; }
+    code { background: var(--bg); padding: 0.1rem 0.35rem; border-radius: 4px; border: 1px solid var(--border); }
+    dl.meta { display: grid; grid-template-columns: max-content 1fr; gap: 0.4rem 1rem; }
+    dl.meta dt { color: var(--muted); }
+    dl.meta dd { margin: 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand"><a href="/ui/">{{ provider }}</a></span>
+    <nav>
+      <a href="/ui/">Browse</a>
+      <a href="/ui/stats">Stats</a>
+    </nav>
+    <span class="spacer"></span>
+    <form class="inline" method="post" action="/ui/logout">
+      <button type="submit">Logout</button>
+    </form>
+  </header>
+  <main>
+    {% block body %}{% endblock %}
+  </main>
+</body>
+</html>

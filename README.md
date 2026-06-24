@@ -12,7 +12,7 @@ It is intended for setups where NZBs already exist locally, for example alongsid
 - Parses NZB XML segment sizes so Newznab results report release payload size, not the `.nzb` file size.
 - Emits Newznab RSS XML with category, title, year, season, episode, resolution, source, codec, and release group attrs when available.
 - Streams the original NZB file back for `t=get`.
-- Accepts authenticated remote NZB uploads for nzbdavex handoff.
+- Can optionally accept authenticated NZB uploads if sharing a directory is not practical.
 - Keeps only parsed metadata in memory. The NZB files remain on disk and are the source of truth; no database is required.
 
 ## Run Locally
@@ -43,7 +43,7 @@ The default image is `ghcr.io/needforseed1/localnzbs:latest`. To build locally i
 
 For local app settings and secrets, copy `.env.example` to `.env` and adjust the values for your system.
 
-The compose file mounts `./nzbs` into the container as `/nzbs` and publishes `8000:8000`. Change those compose lines if your NZBs live somewhere else or if port 8000 is already used. The host side of the NZB mount should be the same directory where nzbdave/nzbdavex downloads or saves NZB files. In upload mode this mount is read-write, because nzbserver receives files and writes them there.
+The compose file mounts `./nzbs` into the container as `/nzbs` and publishes `8000:8000`. Change those compose lines if your NZBs live somewhere else or if port 8000 is already used. The host side of the NZB mount should be the same directory where nzbdave/nzbdavex downloads or saves NZB files.
 
 The example runs as `1000:1000` so generated files are not owned by root. Change the `user:` line in `docker-compose.example.yml` if a different user/group should read and write the shared NZB directory.
 
@@ -54,16 +54,35 @@ The example runs as `1000:1000` so generated files are not owned by root. Change
 | `NZB_DIR` | `/nzbs` | Directory containing `.nzb` files. Scanned recursively. |
 | `PROVIDER_NAME` | `LocalNZBs` | Name exposed to clients as the provider/indexer. |
 | `API_KEY` | unset | Optional key. If set, requests must include `apikey`. |
-| `UPLOAD_KEY` | unset | Optional upload key. If unset, HTTP upload is disabled. |
+| `UPLOAD_KEY` | unset | Optional key for `PUT /nzb/{filename}` uploads. If unset, HTTP upload is disabled. |
 | `BASE_URL` | request host | Optional public base URL used in generated download links. |
 | `REFRESH_SECONDS` | `10` | Minimum seconds between directory rescans. |
 | `MAX_UPLOAD_BYTES` | `104857600` | Maximum accepted raw NZB upload size. |
 | `HOST` | `0.0.0.0` in Docker | Docker command host binding. |
 | `PORT` | `8000` in Docker | Docker command port. |
 
-## Remote nzbdavex Handoff
+## Same-Host Mode
 
-Use this mode while nzbdavex runs on another local server.
+Most setups should use a shared directory. Mount the same host directory into LocalNZBs and nzbdavex/nzbdave:
+
+```yaml
+services:
+  nzbserver:
+    volumes:
+      - /srv/nzbs:/nzbs:rw
+
+  nzbdavex:
+    volumes:
+      - /srv/nzbs:/output-nzbs:rw
+```
+
+Configure nzbdavex to save NZBs into `/output-nzbs` and keep LocalNZBs configured with `NZB_DIR=/nzbs`.
+
+The host path must be the same on both mounts. In the example above, both containers point at `/srv/nzbs`, even though the path inside each container is different.
+
+## Optional HTTP Upload
+
+Use this only when sharing a host directory is not practical, for example when the process saving NZBs runs on another machine.
 
 Configure nzbserver with an upload key:
 
@@ -99,25 +118,6 @@ Response:
 ```
 
 Uploads are written atomically, then the in-memory index is refreshed immediately. Re-uploading the same filename overwrites it, which makes retrying safe.
-
-## Same-Host Mode
-
-When nzbdavex and nzbserver live on the same machine, skip HTTP upload and mount the same host directory into both services:
-
-```yaml
-services:
-  nzbserver:
-    volumes:
-      - /srv/nzbs:/nzbs:rw
-
-  nzbdavex:
-    volumes:
-      - /srv/nzbs:/output-nzbs:rw
-```
-
-Configure nzbdavex to save NZBs into `/output-nzbs` and keep nzbserver configured with `NZB_DIR=/nzbs`.
-
-The host path must be the same on both mounts. In the example above, both containers point at `/srv/nzbs`, even though the path inside each container is different.
 
 ## Newznab Setup
 

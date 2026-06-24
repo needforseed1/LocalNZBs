@@ -13,7 +13,7 @@ It is intended for setups where NZBs already exist locally, for example alongsid
 - Emits Newznab RSS XML with category, title, year, season, episode, resolution, source, codec, and release group attrs when available.
 - Streams the original NZB file back for `t=get`.
 - Accepts authenticated remote NZB uploads for nzbdavex handoff.
-- Uses an in-memory index only. No database required.
+- Keeps only parsed metadata in memory. The NZB files remain on disk and are the source of truth; no database is required.
 
 ## Run Locally
 

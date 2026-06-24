@@ -22,6 +22,17 @@ cp .env.example .env      # then set a real API_KEY (see Configuration)
 docker compose -f docker-compose.example.yml up -d
 ```
 
+Or run it without compose:
+
+```bash
+docker run -d --name nzbserver -p 8000:8000 \
+  -e API_KEY="$(openssl rand -hex 32)" \
+  -v /srv/nzbs:/nzbs:ro \
+  ghcr.io/needforseed1/localnzbs:latest
+```
+
+(`docker run` pulls the image automatically; use `docker pull ghcr.io/needforseed1/localnzbs:latest` to fetch updates.)
+
 - Default image: `ghcr.io/needforseed1/localnzbs:latest`. To build locally, replace the `image:` line with `build: .`.
 - The host side of the `./nzbs` mount should be the **same directory** where nzbdave/nzbdavex saves downloaded NZBs. Change the volume and `8000:8000` port lines if your NZBs live elsewhere or port 8000 is taken.
 - The container runs as `1000:1000` so files are not owned by root. Change the `user:` line if a different user/group should read and write the shared directory.
@@ -34,12 +45,14 @@ Mount the same host directory into both LocalNZBs and nzbdavex/nzbdave:
 services:
   nzbserver:
     volumes:
-      - /srv/nzbs:/nzbs:rw
+      - /srv/nzbs:/nzbs:ro
 
   nzbdavex:
     volumes:
       - /srv/nzbs:/output-nzbs:rw
 ```
+
+LocalNZBs only reads the directory, so `:ro` is enough. Use `:rw` only if you enable [HTTP upload](#optional-http-upload), which writes uploaded NZBs into the directory.
 
 The container-side paths may differ, but the **host path must match** (`/srv/nzbs` above). Configure nzbdavex to save NZBs into `/output-nzbs`; keep LocalNZBs on `NZB_DIR=/nzbs`.
 

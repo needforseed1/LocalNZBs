@@ -1,8 +1,8 @@
 # LocalNZBs
 
-A minuscule Newznab-compatible server for exposing a local directory of `.nzb` files to Prowlarr.
+A minuscule Newznab-compatible server for exposing a local directory of `.nzb` files to AIOStreams, Prowlarr, or anything else that can query a Newznab indexer.
 
-It is intended for setups where NZBs already exist locally, for example alongside nzbdavex/AIOStreams, but Prowlarr still needs something that behaves like an indexer.
+It is intended for setups where NZBs already exist locally, for example alongside nzbdavex/AIOStreams, but your search client still needs something that behaves like an indexer.
 
 ## Features
 
@@ -47,24 +47,12 @@ The compose file mounts `./nzbs` into the container as `/nzbs` and publishes `80
 
 The example runs as `1000:1000` so generated files are not owned by root. Change the `user:` line in `docker-compose.example.yml` if a different user/group should read and write the shared NZB directory.
 
-## Container Image
-
-This repo includes a GitHub Actions workflow that builds and publishes Docker images to GitHub Container Registry.
-
-Published tags:
-
-- `ghcr.io/needforseed1/localnzbs:latest` from the default branch.
-- `ghcr.io/needforseed1/localnzbs:main` from pushes to `main`.
-- `ghcr.io/needforseed1/localnzbs:<version>` from tags like `v0.1.0`.
-
-To publish your own image, create a GitHub repo, push this project to `main`, and make sure GitHub Actions has package write permission. The workflow uses the built-in `GITHUB_TOKEN`; no extra registry secret is required for GHCR. If users should pull without `docker login`, make the GHCR package public after the first image is published.
-
 ## Configuration
 
 | Variable | Default | Description |
 | --- | --- | --- |
 | `NZB_DIR` | `/nzbs` | Directory containing `.nzb` files. Scanned recursively. |
-| `PROVIDER_NAME` | `LocalNZBs` | Name exposed to Prowlarr as the provider/indexer. |
+| `PROVIDER_NAME` | `LocalNZBs` | Name exposed to clients as the provider/indexer. |
 | `API_KEY` | unset | Optional key. If set, requests must include `apikey`. |
 | `UPLOAD_KEY` | unset | Optional upload key. If unset, HTTP upload is disabled. |
 | `BASE_URL` | request host | Optional public base URL used in generated download links. |
@@ -131,16 +119,16 @@ Configure nzbdavex to save NZBs into `/output-nzbs` and keep nzbserver configure
 
 The host path must be the same on both mounts. In the example above, both containers point at `/srv/nzbs`, even though the path inside each container is different.
 
-## Prowlarr Setup
+## Newznab Setup
 
-Add a Newznab indexer manually:
+Add LocalNZBs anywhere that accepts a Newznab source, including AIOStreams or Prowlarr:
 
 - URL: `http://host:8000/api`
 - API Path: leave as default if Prowlarr asks
 - API Key: use the `API_KEY` value if configured, otherwise any value may be accepted depending on Prowlarr validation
 - Categories: enable Movies and/or TV
 
-Prowlarr searches should return locally saved NZBs whose filenames match the requested title. TV searches also filter on season/episode when Prowlarr sends those parameters.
+Searches should return locally saved NZBs whose filenames match the requested title. TV searches also filter on season/episode when the client sends those parameters.
 
 ## Pin Local NZBs in AIOStreams
 
@@ -162,7 +150,7 @@ The expression belongs in `Excluded` stream expressions because `pin()` marks ma
 
 If local NZBs appear only after restarting AIOStreams, disable or shorten AIOStreams' built-in Prowlarr search cache. A cached Prowlarr result can be created before nzbdavex saves the local NZB, then AIOStreams keeps returning that stale result instead of asking Prowlarr again.
 
-For the most reliable setup, use Prowlarr for remote Usenet indexers and add `nzbserver` directly to AIOStreams as a Newznab source. Disable `LocalNZBs` in the Prowlarr addon selection to avoid caching local and remote results together.
+For the most reliable setup, use Prowlarr for remote Usenet indexers and add LocalNZBs directly to AIOStreams as a Newznab source. Disable `LocalNZBs` in the Prowlarr addon selection to avoid caching local and remote results together.
 
 Example AIOStreams cache settings:
 

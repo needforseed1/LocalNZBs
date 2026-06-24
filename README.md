@@ -121,20 +121,30 @@ Searches return locally saved NZBs whose filenames match the requested title. TV
 
 ### Pin local NZBs in AIOStreams
 
-To keep local NZBs at the top of AIOStreams results, add this stream expression under
-**Filters → Stream Expression → Excluded**:
+For best results, add LocalNZBs directly to AIOStreams as a Newznab source and use Prowlarr only for remote Usenet indexers. This lets AIOStreams keep its Prowlarr cache for slower remote searches while querying LocalNZBs through the direct Newznab cache path, which can be disabled so newly saved local NZBs appear immediately. If LocalNZBs is included through the Prowlarr addon instead, local and remote results can be cached together, so AIOStreams may keep serving an older Prowlarr result that was created before nzbdavex saved the local NZB.
+
+Disable LocalNZBs in the AIOStreams Prowlarr addon selection, then add LocalNZBs to **Ranked Stream Expressions** with a high score, for example `100000`:
+
+```text
+/* LocalNZBs */
+indexer(type(streams, 'usenet'), 'LocalNZBs')
+```
+
+This makes matching LocalNZBs streams sort above normal remote results.
+
+Also add this stream expression under **Filters → Stream Expression → Excluded**:
 
 ```text
 pin(indexer(type(streams, 'usenet'), 'LocalNZBs'), 'top')
 ```
 
-It belongs in *Excluded* because `pin()` marks matching Usenet streams as pinned without removing them. `LocalNZBs` must match the indexer name shown in AIOStreams results (the default `PROVIDER_NAME`).
+The `pin()` expression belongs in *Excluded* because it marks matching Usenet streams as pinned without removing them. Do not put this expression in a required/included filter, or it can act like a filter instead of just pinning.
 
-For the most reliable setup, use Prowlarr for remote Usenet indexers and add LocalNZBs directly to AIOStreams as a Newznab source. Disable `LocalNZBs` in the Prowlarr addon selection so local and remote results are not cached together.
+`LocalNZBs` must match the indexer name shown in AIOStreams results. By default, that comes from `PROVIDER_NAME=LocalNZBs`. If you rename the provider, update the expression to match the displayed indexer name.
 
 ### Caching
 
-If local NZBs appear only after restarting AIOStreams, its Prowlarr search cache may have stored a result before nzbdavex saved the local NZB. Disable or shorten that cache:
+If local NZBs appear only after restarting AIOStreams, its Prowlarr search cache may have stored a result before nzbdavex saved the local NZB. Set these in the AIOStreams `.env` file or container environment, not in LocalNZBs:
 
 ```env
 BUILTIN_PROWLARR_SEARCH_CACHE_TTL=900

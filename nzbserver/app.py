@@ -26,12 +26,26 @@ class Settings:
     max_upload_bytes: int
 
 
+# Keys left at their .env.example placeholder value are treated as "not set",
+# so the server fails closed instead of running with a guessable secret.
+PLACEHOLDER_KEYS = {"change-me", "change-me-too"}
+
+
+def configured_key(value: str | None) -> str | None:
+    if value is None:
+        return None
+    value = value.strip()
+    if not value or value in PLACEHOLDER_KEYS:
+        return None
+    return value
+
+
 def load_settings() -> Settings:
     return Settings(
         nzb_dir=Path(os.getenv("NZB_DIR", "/nzbs")).expanduser(),
         provider_name=os.getenv("PROVIDER_NAME", "LocalNZBs"),
-        api_key=os.getenv("API_KEY") or None,
-        upload_key=os.getenv("UPLOAD_KEY") or None,
+        api_key=configured_key(os.getenv("API_KEY")),
+        upload_key=configured_key(os.getenv("UPLOAD_KEY")),
         base_url=os.getenv("BASE_URL") or None,
         refresh_seconds=int(os.getenv("REFRESH_SECONDS", "10")),
         max_upload_bytes=int(os.getenv("MAX_UPLOAD_BYTES", str(100 * 1024 * 1024))),
@@ -71,7 +85,11 @@ def root() -> Response:
 @app.get("/api")
 def api(request: Request) -> Response:
     params = request.query_params
-    if settings.api_key and params.get("apikey") != settings.api_key:
+    if not settings.api_key:
+        return xml_response(
+            error_xml(100, "API_KEY is not configured on the server"), status_code=403
+        )
+    if params.get("apikey") != settings.api_key:
         return xml_response(error_xml(100, "Incorrect user credentials"), status_code=403)
 
     command = params.get("t", "caps").lower()

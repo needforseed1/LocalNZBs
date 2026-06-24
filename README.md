@@ -34,12 +34,12 @@ docker run -d --name nzbserver -p 8000:8000 \
 (`docker run` pulls the image automatically; use `docker pull ghcr.io/needforseed1/localnzbs:latest` to fetch updates.)
 
 - Default image: `ghcr.io/needforseed1/localnzbs:latest`. To build locally, replace the `image:` line with `build: .`.
-- The host side of the `./nzbs` mount should be the **same directory** where nzbdave/nzbdavex saves downloaded NZBs. Change the volume and `8000:8000` port lines if your NZBs live elsewhere or port 8000 is taken.
+- Change the volume and `8000:8000` port lines if your NZBs live elsewhere or port 8000 is taken.
 - The container runs as `1000:1000` so files are not owned by root. Change the `user:` line if a different user/group should read and write the shared directory.
 
 ### Shared directory
 
-Mount the same host directory into both LocalNZBs and nzbdavex/nzbdave:
+The host side of the `./nzbs` mount must be the **same directory** where nzbdave/nzbdavex saves downloaded NZBs. Mount that one host directory into both containers:
 
 ```yaml
 services:

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "localnzbs"
+version = "0.1.0"
+description = "A tiny local-NZB Newznab-compatible server for Prowlarr."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.111",
+    "guessit>=3.8",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.27",
+]
+
+[tool.setuptools.packages.find]
+include = ["nzbserver*"]
